@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  traefik:
+    image: traefik:v2.11.0
+    ports:
+      - "80:80"
+    networks:
+      - traefik-proxy
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-proxy"
+        - "traefik.http.routers.traefik.entrypoints=http"
+        - "traefik.http.routers.traefik.rule=Host(`${SERVER_ADDRESS}`) && (PathPrefix(`/api`) || PathPrefix(`/traefik`))"
+        - "traefik.http.routers.traefik.service=api@internal"
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+        - "traefik.http.routers.traefik.middlewares=traefik-auth,traefik-subfolder"
+        - "traefik.http.middlewares.traefik-subfolder.stripprefix.prefixes=/traefik"
+        - "traefik.http.middlewares.traefik-auth.basicauth.users=${AUTH_USERNAME}:${AUTH_PASSWORD}"
+
+networks:
+  traefik-proxy:
+    external: true

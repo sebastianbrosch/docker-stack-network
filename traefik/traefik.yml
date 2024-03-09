@@ -1,0 +1,14 @@
+providers:
+  docker:
+    swarmMode: true
+    endpoint: "unix://var/run/docker.sock"
+    exposedByDefault: false
+    network: "traefik-proxy"
+
+entryPoints:
+  http:
+    address: ":80"
+
+api:
+  dashboard: true
+  insecure: true
