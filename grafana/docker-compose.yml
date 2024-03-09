@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  grafana:
+    image: grafana/grafana:10.4.0
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - traefik-proxy
+    environment:
+      - "GF_SERVER_ROOT_URL=http://${SERVER_ADDRESS}/grafana"
+      - "GF_SERVER_SERVE_FROM_SUB_PATH=true"
+      - "GF_SERVER_DOMAIN=${SERVER_ADDRESS}"
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-proxy"
+        - "traefik.http.routers.grafana.entrypoints=http"
+        - "traefik.http.routers.grafana.rule=Host(`${SERVER_ADDRESS}`) && PathPrefix(`/grafana`)"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+
+volumes:
+  grafana-data:
