@@ -1,4 +1,5 @@
 # Docker Stack - Network
+Docker Stack to provide various services on the network.
 
 ## Traefik
 
