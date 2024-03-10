@@ -1,0 +1,48 @@
+version: '3.9'
+services:
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    user: root
+    command:
+      - "--storage.tsdb.retention.time=180d"
+      - "--storage.tsdb.retention.size=15GB"
+      - "--storage.tsdb.path=/data"
+      - "--web.external-url=http://${SERVER_ADDRESS}/prometheus/"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - traefik-proxy
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./config/:/etc/prometheus/
+      - prometheus-data:/data
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-proxy"
+        - "traefik.http.routers.prometheus.entrypoints=http"
+        - "traefik.http.routers.prometheus.rule=Host(`${SERVER_ADDRESS}`) && PathPrefix(`/prometheus`)"
+        - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+        - "traefik.http.routers.prometheus.middlewares=prometheus-auth"
+        - "traefik.http.middlewares.prometheus-auth.basicauth.users=${AUTH_USERNAME}:${AUTH_PASSWORD}"
+  speedtest:
+    image: billimek/prometheus-speedtest-exporter:1.3.1
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - traefik-proxy
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.25.0
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
+
+volumes:
+  prometheus-data:

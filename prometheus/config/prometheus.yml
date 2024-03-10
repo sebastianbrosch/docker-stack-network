@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: 'speedtest'
+    static_configs:
+      - targets:
+        - speedtest:9469
+    metrics_path: /probe
+    params:
+      script: [speedtest]
+    scrape_interval: 60m
+    scrape_timeout: 90s
