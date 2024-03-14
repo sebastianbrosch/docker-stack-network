@@ -18,3 +18,9 @@ bash ./prometheus/install.sh -a 192.168.0.42 -n net-prometheus
 ```
 bash ./grafana/install.sh -a 192.168.0.42 -n net-grafana
 ```
+
+## DNS (Pi-hole)
+
+```
+bash ./dns/install.sh -a 192.168.0.42 -n net-dns
+```
