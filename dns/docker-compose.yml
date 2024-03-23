@@ -1,46 +1,14 @@
 version: '3.9'
 
 services:
-  pihole:
-    image: pihole/pihole:2024.02.2
-    environment:
-      - "TZ=${TIMEZONE}"
-      - "WEBPASSWORD=${PIHOLE_PASSWORD}"
-      - "DNSMASQ_LISTENING=all"
-      - "FTLCONF_LOCAL_IPV4=${IP4}"
-      - "PIHOLE_DNS_=${PIHOLE_DNS:-8.8.8.8;8.8.4.4}"
-      - "REV_SERVER=${PIHOLE_REV_SERVER:-false}"
-      - "REV_SERVER_CIDR=${PIHOLE_REV_SERVER_CIDR}"
-      - "REV_SERVER_DOMAIN=${PIHOLE_REV_SERVER_DOMAIN}"
-      - "REV_SERVER_TARGET=${PIHOLE_REV_SERVER_TARGET}"
-      - "DNSSEC=${PIHOLE_DNSSEC:-false}"
-    ports:
-      - target: 53
-        published: 53
-        protocol: tcp
-        mode: host
-      - target: 53
-        published: 53
-        protocol: udp
-        mode: host
-    networks:
-      - traefik-proxy
+  unbound:
+    image: klutchell/unbound:latest
     volumes:
-      - pihole-data:/etc/pihole
-    deploy:
-      labels:
-        - "traefik.enable=true"
-        - "traefik.docker.network=traefik-proxy"
-        - "traefik.http.routers.pihole.entrypoints=http"
-        - "traefik.http.routers.pihole.rule=Host(`${SERVER_ADDRESS}`) && PathPrefix(`/pihole/`)"
-        - "traefik.http.services.pihole.loadbalancer.server.port=80"
-        - "traefik.http.middlewares.pihole.replacepathregex.regex=^/pihole/(.*)"
-        - "traefik.http.middlewares.pihole.replacepathregex.replacement=/admin/$$1"
-        - "traefik.http.routers.pihole.middlewares=pihole"
+      - ./unbound:/etc/unbound/custom.conf.d
+    networks:
+      - host-network
 
 networks:
-  traefik-proxy:
+  host-network:
+    name: host
     external: true
-
-volumes:
-  pihole-data:

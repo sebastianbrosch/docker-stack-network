@@ -5,6 +5,7 @@ services:
     image: traefik:v2.11.0
     ports:
       - "80:80"
+      - "443:443"
     networks:
       - traefik-proxy
     volumes:

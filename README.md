@@ -19,8 +19,9 @@ bash ./prometheus/install.sh -a 192.168.0.42 -n net-prometheus
 bash ./grafana/install.sh -a 192.168.0.42 -n net-grafana
 ```
 
-## DNS (Pi-hole)
+## DNS
+This Docker Stack is using unbound as recursive, caching DNS resolver. It also can be used as a upstream server for Pi-hole. It is possible to change the DNS port using `dns/unbound.port.conf`. This Stack is currently missing Pi-hole because of the missing option to change the web port. This option will be introduced with Pi-hole 6.
 
 ```
-bash ./dns/install.sh -a 192.168.0.42 -n net-dns
+bash ./dns/install.sh -n net-dns
 ```

@@ -5,11 +5,9 @@
 # You can use these parameters to install and configure the DNS services:
 #
 #   Option         Long Option            Meaning
-#   -a <address>   --address <address>    The address of the server.
 #   -d             --debug                Show some debug information.
 #   -h             --help                 Show this help.
 #   -n <name>      --name <name>          The name of the Docker Stack.
-#   -p <password>  --password <password>  The password for Pi-hole web backend.
 #   -v             --version              Show the version of this script.
 #
 # This script can exit with one of these exit codes:
@@ -30,11 +28,9 @@ function show_help() {
   printf "%-s\n\n" "This script installs and updates DNS services on a Docker Stack."
   printf "%-s\n\n" "You can use these parameters to install and configure the DNS services:"
   printf "  %-15s%-23s%-s\n" "Option" "Long Option" "Meaning"
-  printf "  %-15s%-23s%-s\n" "-a <address>" "--address <address>" "The address of the server."
   printf "  %-15s%-23s%-s\n" "-d" "--debug" "Show some debug information."
   printf "  %-15s%-23s%-s\n" "-h" "--help" "Show this help."
   printf "  %-15s%-23s%-s\n" "-n <name>" "--name <name>" "The name of the Docker Stack."
-  printf "  %-15s%-23s%-s\n" "-p <password>" "--password <password>" "The password for Pi-hole web backend."
   printf "  %-15s%-23s%-s\n" "-v" "--version" "Show the version of this script."
   printf "\n"
   printf "This script can exit with one of these exit codes:\n\n"
@@ -69,14 +65,6 @@ function is_installed_docker() {
 }
 
 ###########################################################
-# Get the ID of the specified network.
-###########################################################
-function get_network() {
-  local name=$1
-  docker network inspect "$name" --format {{.ID}} 2>/dev/null | grep -v -e "^$"
-}
-
-###########################################################
 # Check whether a Docker Stack is deployed.
 ###########################################################
 function is_deployed() {
@@ -92,29 +80,23 @@ function is_docker_swarm() {
 }
 
 ###########################################################
-# Load the environment file to export all variables.
+# Get the ID of a specific container.
 ###########################################################
-function load_env() {
-  folder="$(dirname $0)"
-
-  if [[ -f "$folder/.env" ]]; then
-    set -a && . "$folder/.env" && set +a
-  fi
+function get_container_id() {
+  local service=$1
+  local container=$2
+  docker ps -aqf "name=^${service}_${container}"
 }
 
 # get all parameter values of user input.
 while [[ "$#" != "0" ]]; do
-  if [[ "$1" == "-a" ]] || [[ "$1" == "--address" ]]; then
-    address="$2"
-  elif [[ "$1" == "-d" ]] || [[ "$1" == "--debug" ]]; then
+  if [[ "$1" == "-d" ]] || [[ "$1" == "--debug" ]]; then
     debug=1
   elif [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     show_help
     exit 0
   elif [[ "$1" == "-n" ]] || [[ "$1" == "--name" ]]; then
     name="$2"
-  elif [[ "$1" == "-p" ]] || [[ "$1" == "--password" ]]; then
-    password="$2"
   elif [[ "$1" == "-v" ]] || [[ "$1" == "--version" ]]; then
     show_version
     exit 0
@@ -124,21 +106,11 @@ done
 
 # get additional information to execute the script.
 # also set default values for missing parameter values.
-address="${address:-$(get_ip4)}"
+address="$(get_ip4)"
 debug="${debug:-0}"
 folder="$(dirname $0)"
-name="${name:-prometheus}"
-password="${password:-password}"
+name="${name:-dns}"
 timezone="$(cat /etc/timezone)"
-
-# export variables for the compose file.
-export TIMEZONE="$timezone"
-export PIHOLE_PASSWORD="$password"
-export IP4="$(get_ip4)"
-export SERVER_ADDRESS="$address"
-
-# load additional settings from environment file.
-load_env
 
 # check whether Docker is installed on this server.
 if ! is_installed_docker; then
@@ -152,37 +124,22 @@ if ! is_docker_swarm; then
   exit 21
 fi
 
-# get information about the network (traefik-proxy).
-network=$(get_network "traefik-proxy")
-
-# check whether the network traefik-proxy is available.
-if [[ -z "$network" ]]; then
-  echo "The network traefik-proxy is not available."
-  exit 31
-fi
-
 # it is possible to run this script in debug mode.
 # the debug mode outputs the variables and final compose file.
 if [[ "$debug" == "1" ]]; then
   printf "\nVariables:\n\n"
-  printf "  %-18s%-s\n" "Address:" "$address"
   printf "  %-18s%-s\n" "Debug:" "$debug"
-  printf "  %-18s%-s\n" "IP4:" "$IP4"
-  printf "  %-18s%-s\n" "Network:" "$network"
+  printf "  %-18s%-s\n" "IP4:" "$address"
   printf "  %-18s%-s\n" "Script Folder:" "$folder"
   printf "  %-18s%-s\n" "Script Version:" "$(show_version)"
   printf "  %-18s%-s\n" "Stack Name:" "$name"
-  printf "  %-18s%-s\n" "Timezone:" "$timezone"
   printf "\nDocker Compose File:\n\n"
   docker stack config --compose-file "$folder/docker-compose.yml"
   exit 0
 else
-  printf "\nDocker Stack for Prometheus (%s):\n\n" "$(show_version)"
-  printf "  %-18s%-s\n" "Address:" "$address"
-  printf "  %-18s%-s\n" "IP4:" "$IP4"
-  printf "  %-18s%-s\n" "Network:" "$network"
+  printf "\nDocker Stack for DNS services (%s):\n\n" "$(show_version)"
+  printf "  %-18s%-s\n" "IP4:" "$address"
   printf "  %-18s%-s\n" "Stack Name:" "$name"
-  printf "  %-18s%-s\n" "Timezone:" "$timezone"
 fi
 
 # the Docker Stack can be installed or updated.
@@ -207,7 +164,13 @@ if [[ "$proceed" != "y" ]] && [[ "$proceed" != "Y" ]]; then
   exit 30
 fi
 
-# deploy the Docker Stack for Prometheus.
+# set the permissions of the unbound configuration files.
+# https://github.com/klutchell/unbound-docker?tab=readme-ov-file#usageexamples
+if [[ -d "./unbound/" ]]; then
+  sudo chown 101:102 ./unbound/*
+fi
+
+# deploy the Docker Stack for DNS services.
 docker stack deploy -c "$folder/docker-compose.yml" "$name" 1> /dev/null
 
 # check whether the Docker Stack was deployed successfully.
